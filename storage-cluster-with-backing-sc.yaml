@@ -1,0 +1,300 @@
+# Need atleast 12 nodes to test 3 performance profiles
+# 3 Nodes per performance profile (3x3)
+# 3 Nodes for rook pods (mds,mgr,mon)
+
+# OSD Nodes (9) need to be tainted and have a label of performance profile name `performanceProfile/fast=''`
+# other 3 nodes need ot have label of ocs-storage
+# `cluster.ocs.openshift.io/openshift-storage=''`
+
+apiVersion: ocs.openshift.io/v1
+kind: StorageCluster
+metadata:
+  name: ocs-storagecluster
+  namespace: openshift-storage
+spec:
+  labelSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/worker
+        operator: Exists
+      - key: node-role.kubernetes.io/infra
+        operator: DoesNotExist
+  # MS Provider specific config start
+  allowRemoteStorageConsumers: true
+  hostNetwork: true
+  multiCloudGateway:
+    reconcileStrategy: "ignore"
+  # MS provider specific end
+  defaultStorageProfile: "medium-performance-storageprofile"
+  storageProfiles:
+    - name: fast-performance-storageprofile
+      deviceClass: fast
+      blockPoolConfiguration:
+        parameters:
+          pg_autoscale_mode: "on"
+          pg_num: "128"
+          pgp_num: "128"
+      sharedFilesystemConfiguration:
+        parameters:
+          pg_autoscale_mode: "on"
+          pg_num: "128"
+          pgp_num: "128"
+    - name: medium-performance-storageprofile
+      deviceClass: medium
+      blockPoolConfiguration:
+        parameters:
+          pg_autoscale_mode: "on"
+          pg_num: "128"
+          pgp_num: "128"
+      sharedFilesystemConfiguration:
+        parameters:
+          pg_autoscale_mode: "on"
+          pg_num: "128"
+          pgp_num: "128"
+    - name: slow-performance-storageprofile
+      deviceClass: slow
+      sharedFilesystemConfiguration:
+        parameters:
+          pg_autoscale_mode: "on"
+          pg_num: "128"
+          pgp_num: "128"
+      blockPoolConfiguration:
+        parameters:
+          pg_autoscale_mode: "on"
+          pg_num: "128"
+          pgp_num: "128"
+  backingStorageClasses:
+    - metadata:
+        name: fast-performance
+      parameters:
+        type: gp3
+        iops: "9000"
+    - metadata:
+        name: medium-performance
+      provisioner: ebs.csi.aws.com
+      parameters:
+        type: gp3
+        iops: "6000"
+    - metadata:
+        name: slow-performance
+      provisioner: ebs.csi.aws.com
+      parameters:
+        type: gp3
+        iops: "3000"
+  storageDeviceSets:
+    - config: {}
+      resources:
+        limits:
+          cpu: "2"
+          memory: 5Gi
+        requests:
+          cpu: "1"
+          memory: 5Gi
+      placement:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: storageprofile
+                    operator: Exists
+                    value: fast
+        tolerations:
+          - effect: NoSchedule
+            key: storageprofile
+            operator: Equal
+            value: fast
+        topologySpreadConstraints:
+          - labelSelector:
+              matchExpressions:
+                - key: ceph.rook.io/pvc
+                  operator: Exists
+            maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+          - labelSelector:
+              matchExpressions:
+                - key: ceph.rook.io/pvc
+                  operator: Exists
+            maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+      name: fast-deviceset
+      deviceClass: fast
+      dataPVCTemplate:
+        metadata: {}
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 512Gi
+          storageClassName: fast-performance
+          volumeMode: Block
+        status: {}
+      count: 1
+      replica: 3
+      portable: true
+      preparePlacement: {}
+    - config: {}
+      resources:
+        limits:
+          cpu: "2"
+          memory: 5Gi
+        requests:
+          cpu: "1"
+          memory: 5Gi
+      placement:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: storageprofile
+                    operator: Exists
+                    value: medium
+        tolerations:
+          - effect: NoSchedule
+            key: storageprofile
+            operator: Equal
+            value: medium
+        topologySpreadConstraints:
+          - labelSelector:
+              matchExpressions:
+                - key: ceph.rook.io/pvc
+                  operator: Exists
+            maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+          - labelSelector:
+              matchExpressions:
+                - key: ceph.rook.io/pvc
+                  operator: Exists
+            maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+      name: medium-deviceset
+      deviceClass: medium
+      dataPVCTemplate:
+        metadata: {}
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 512Gi
+          storageClassName: medium-performance
+          volumeMode: Block
+        status: {}
+      count: 1
+      replica: 3
+      portable: true
+      preparePlacement: {}
+    - config: {}
+      resources:
+        limits:
+          cpu: "2"
+          memory: 5Gi
+        requests:
+          cpu: "1"
+          memory: 5Gi
+      placement:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: storageprofile
+                    operator: Exists
+                    value: slow
+        tolerations:
+          - effect: NoSchedule
+            key: storageprofile
+            operator: Equal
+            value: slow
+        topologySpreadConstraints:
+          - labelSelector:
+              matchExpressions:
+                - key: ceph.rook.io/pvc
+                  operator: Exists
+            maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+          - labelSelector:
+              matchExpressions:
+                - key: ceph.rook.io/pvc
+                  operator: Exists
+            maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+      name: slow-deviceset
+      deviceClass: slow
+      dataPVCTemplate:
+        metadata: {}
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 512Gi
+          storageClassName: slow-performance
+          volumeMode: Block
+        status: {}
+      count: 1
+      replica: 3
+      portable: true
+      preparePlacement: {}
+  monPVCTemplate:
+    metadata: {}
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 512Gi
+      storageClassName: gp3-csi
+      volumeMode: Block
+  encryption:
+    kms: {}
+  mirroring: {}
+  resources:
+    mds:
+      limits:
+        cpu: "1"
+        memory: 2Gi
+      requests:
+        cpu: "1"
+        memory: 2Gi
+    mgr:
+      limits:
+        cpu: "3"
+        memory: 2Gi
+      requests:
+        cpu: "1"
+        memory: 2Gi
+    mon:
+      limits:
+        cpu: "3"
+        memory: 2Gi
+      requests:
+        cpu: "1"
+        memory: 2Gi
+    rgw:
+      limits:
+        cpu: "2"
+        memory: 4Gi
+      requests:
+        cpu: "1"
+        memory: 4Gi
+  managedResources:
+    cephBlockPools:
+      disableSnapshotClass: true
+      disableStorageClass: true
+      reconcileStrategy: ignore
+    cephFilesystems:
+      disableSnapshotClass: true
+      disableStorageClass: true
+    cephCluster: {}
+    cephConfig: {}
+    cephDashboard: {}
+    cephObjectStoreUsers: {}
+    cephObjectStores: {}
+  arbiter: {}
+  nodeTopologies: {}
+  externalStorage: {}

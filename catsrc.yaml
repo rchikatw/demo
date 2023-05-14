@@ -1,0 +1,18 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+ name: redhat-operators-test
+ namespace: default
+spec:
+ displayName: Openshift Container Storage Temp
+ icon:
+   base64data: ''
+   mediatype: ''
+ image: quay.io/rhceph-dev/ocs-registry:4.13.0-164
+ priority: 100
+ publisher: Red Hat
+ sourceType: grpc
+ updateStrategy:
+   registryPoll:
+     interval: 15m
+
